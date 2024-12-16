@@ -16,6 +16,10 @@ class Cell:
         self.board = board
 
     @property
+    def is_blank(self):
+        return self.color == BLACK
+
+    @property
     def top_cell(self):
         return self.board.get_cell(self.x, self.y - 1)
 
@@ -31,6 +35,10 @@ class Cell:
     def right_cell(self):
         return self.board.get_cell(self.x + 1, self.y)
 
+    @property
+    def surrounding_cells(self):
+        return 
+
     def print(self):
         r = self.color[0]
         g = self.color[1]
@@ -38,52 +46,67 @@ class Cell:
 
         print(f"\033[48;2;{r};{g};{b}m  \033[0m", end="")
 
-        print(f" ({self.x}, {self.y})")
 
-    def deep_print(self):
-        r = self.color[0]
-        g = self.color[1]
-        b = self.color[2]
+class Path:
+    def __init__(self, start_cell):
+        self.path = [start_cell]
+        self.color = start_cell.color
 
-        print(f"\033[48;2;{r};{g};{b}m  \033[0m", end="")
+    @property
+    def head(self):
+        return self.path[-1]
 
-        print(f" ({self.x}, {self.y})")
+    @property
+    def neck(self):
+        if len(self.path) == 1:
+            return self.path[-1]
 
-        print("top: ", end="")
-        if self.top_cell != None:
-            self.top_cell.print()
-        else:
-            print("None")
+        return self.path[-2]
 
-        print("left: ", end="")
-        if self.left_cell != None:
-            self.left_cell.print()
-        else:
-            print("None")
+    def print(self):
+        self.head.print()
+        print(" ", end="")
 
-        print("bottom: ", end="")
-        if self.bottom_cell != None:
-            self.bottom_cell.print()
-        else:
-            print("None")
+        for cell in self.path:
+            print(f"({cell.x}, {cell.y}) ->")
 
-        print("right: ", end="")
-        if self.right_cell != None:
-            self.right_cell.print()
-        else:
-            print("None")
+    def expand(self):
+        surrounding_cells = [self.head.top_cell, self.head.left_cell, self.head.bottom_cell, self.head.right_cell]
 
+        surrounding_cells = [cell for cell in surrounding_cells if cell != None]
+        surrounding_cells = [cell for cell in surrounding_cells if cell != self.neck]
+
+        for cell in surrounding_cells:
+            if cell.color == self.color:
+                return self
+
+        surrounding_cells = [cell for cell in surrounding_cells if cell.is_blank]
+
+        if len(surrounding_cells) != 1:
+            return self
+
+        next_cell = surrounding_cells[0]
+
+        next_cell.color = self.color
+        self.path.append(next_cell)
+
+        return self.expand()
 
 class Free_Flow:
     def __init__(self, board):
         self.board = []
         self.size = len(board)
+        self.paths = []
 
         for y, row in enumerate(board):
             board_row = []
             for x, color in enumerate(row):
                 cell = Cell(color, x, y, self)
                 board_row.append(cell)
+
+                if not cell.is_blank:
+                    self.paths.append(Path(cell))
+
             self.board.append(board_row)
 
     def get_cell(self, x: int, y: int) -> Cell | None:
@@ -101,17 +124,30 @@ class Free_Flow:
                 cell.print()
             print()
 
+    def solve(self):
+        for path in self.paths:
+            path.expand()
+
+        for row in self.board:
+            for cell in row:
+                if cell.is_blank:
+                    self.solve()
+
 
 if __name__ == "__main__":
 
     board = [
-        [BLUE, RED, RED, RED, ORANGE],
-        [BLUE, RED, YELLOW, YELLOW, ORANGE],
-        [BLUE, RED, YELLOW, ORANGE, ORANGE],
-        [BLUE, RED, ORANGE, ORANGE, GREEN],
-        [BLUE, BLUE, GREEN, GREEN, GREEN],
+        [BLACK, BLACK, BLACK, BLACK, BLACK, ORANGE],
+        [BLACK, BLACK, BLACK, BLACK, BLACK, BLACK],
+        [BLACK, YELLOW, RED, BLACK, BLACK, BLACK],
+        [BLACK, BLACK, BLACK, GREEN, BLACK, YELLOW],
+        [BLACK, GREEN, BLACK, ORANGE, RED, BLUE],
+        [BLACK, BLACK, BLACK, BLUE, BLACK, BLACK],
     ]
 
     game = Free_Flow(board)
 
-    game.get_cell(0, 0).deep_print()
+    game.print()
+
+    game.solve()
+    game.print()
